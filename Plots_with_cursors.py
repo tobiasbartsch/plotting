@@ -7,29 +7,32 @@ import holoviews.operation.datashader as hd
 from holoviews.plotting.links import DataLink
 hd.shade.cmap=["lightblue", "darkblue"]
 
-class DataShaded_with_cursors(object):
+class DataShadedWithCursors(object):
+    '''Combines a datashaded plot with dynamic cursors. Assumes that the data was sampled at a set rate and that adjacent data points are equidistant along the time axis.'''
     
-    def __init__(self, data):
-        if(type(data) != xr.core.dataarray.DataArray):
-            raise ValueError('data must be an xarray')
+    def __init__(self, timeseries):
+        '''Construct a DataShadedWithCursors object.
+            Args:
+                timeseries (xarray.DataArray of no.array): the time series
+        '''
 
-        self._data = data
-        self._coord = list(self._data.coords.keys())[0] #key of the first coordinate axis in the xarray
-        
-        self._x_scaled = np.copy(self._data[self._coord])
-        self._x_scaling = np.amax(self._x_scaled)
-        self._x_scaled/=self._x_scaling
-        
-        self._y_scaled = np.copy(self._data.values)
-        self._y_scaling = np.amax(self._y_scaled)
-        self._y_scaled/=self._y_scaling
-        
-    def _nearest_data(self, data, color, cursorname):
-        '''Return hv.Points closest to the cursor positions in the data. Data is meant to come from hv.streams.PointDraw'''
+        if(type(timeseries) == np.ndarray):
+            timeseries = xr.DataArray(timeseries,
+                                dims='index',
+                                coords={'index': np.arange(0, len(timeseries))})
+        elif(type(timeseries) != xr.core.dataarray.DataArray):
+            raise ValueError("data must be an xarray.DataArray or numpy.ndarray")
+
+        self._timeseries = timeseries
+        _coord = list(self._timeseries.coords.keys())[0] #key of the first coordinate axis in the xarray
+        self._dt = float(timeseries[_coord][1]-timeseries[_coord][0]) #find increment between successive steps of the coordinate axis.
+
+    def _snap(self, data, color):
+        '''Snap cursors (PointDraw stream) to the underlying data of the graph'''
         self.pnts_snapped = []
         for x in data['x']:
-            index = int(np.floor(x/1e-5))
-            self.pnts_snapped.append([float(x), float(self._data.values[index]), index])
+            index = int(np.floor(x/self._dt))
+            self.pnts_snapped.append([float(x), float(self._timeseries.values[index]), index])
         self.pnts_dict = {'x': [p[0] for p in self.pnts_snapped], 'y': [p[1] for p in self.pnts_snapped], 'index': [p[2] for p in self.pnts_snapped]}
         return hv.Points(self.pnts_dict, vdims='index').opts(size=10, color=color)
         
@@ -37,10 +40,10 @@ class DataShaded_with_cursors(object):
     def view(self):
         '''Return a HoloViews layout of the datashaded curve, cursors, and a table of cursor positions'''
 
-        dshade = hd.datashade(hv.Scatter(self._data)).opts(width=800)
+        dshade = hd.datashade(hv.Scatter(self._timeseries)).opts(width=800)
         cursor_stream = hv.streams.PointDraw(data={'x': [], 'y': []}, empty_value=0)
-        cursor_dmap = hv.DynamicMap(partial(self._nearest_data,color='red', cursorname='A'), streams=[cursor_stream])
-        table = hv.Table(cursor_dmap, ['x', 'y'])
+        cursor_dmap = hv.DynamicMap(partial(self._snap,color='green'), streams=[cursor_stream])
+        table = hv.Table(cursor_dmap, ['x', 'y']).opts(editable=True)
         DataLink(cursor_dmap, table)
         return (dshade * cursor_dmap) + table
         
