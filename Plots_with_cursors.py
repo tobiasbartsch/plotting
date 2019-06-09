@@ -33,8 +33,8 @@ class DataShadedWithCursors(object):
         for x in data['x']:
             index = int(np.floor(x/self._dt))
             self.pnts_snapped.append([float(x), float(self._timeseries.values[index]), index])
-        self.pnts_dict = {'x': [p[0] for p in self.pnts_snapped], 'y': [p[1] for p in self.pnts_snapped], 'index': [p[2] for p in self.pnts_snapped]}
-        return hv.Points(self.pnts_dict, vdims='index').opts(size=10, color=color)
+        pnts_dict = {'x': [p[0] for p in self.pnts_snapped], 'y': [p[1] for p in self.pnts_snapped], 'index': [p[2] for p in self.pnts_snapped]}
+        return hv.Points(pnts_dict, vdims='index').opts(size=10, color=color)
         
     @property
     def view(self):
@@ -62,7 +62,7 @@ class DataShadedWithCursors(object):
         Retunrs:
             (mean, sdev)
         """
-        mean = np.mean(self._data.values[self.cursor[a]['index']:self.cursor[b]['index']])
-        sdev = np.std(self._data.values[self.cursor[a]['index']:self.cursor[b]['index']])
+        mean = np.mean(self._timeseries.values[self.cursor[a]['index']:self.cursor[b]['index']])
+        sdev = np.std(self._timeseries.values[self.cursor[a]['index']:self.cursor[b]['index']])
         
         return (mean, sdev)
