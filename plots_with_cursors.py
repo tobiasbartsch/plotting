@@ -2,7 +2,6 @@ from functools import partial
 import numpy as np
 import holoviews as hv
 import xarray as xr
-from holoviews.operation import decimate
 import holoviews.operation.datashader as hd
 from holoviews.plotting.links import DataLink
 hd.shade.cmap=["lightblue", "darkblue"]
